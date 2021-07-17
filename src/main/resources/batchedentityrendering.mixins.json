@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.coderbot.batchedentityrendering.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "MixinBufferBuilder",
+    "MixinBufferBuilderStorage",
+    "MixinDebugHud",
+    "MixinImmediateVertexConsumerProvider",
+    "MixinMultiPhaseRenderLayer",
+    "MixinWorldRenderer",
+    "MultiPhaseParametersAccessor",
+    "RenderPhaseAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
