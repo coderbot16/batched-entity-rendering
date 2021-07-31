@@ -1,7 +1,7 @@
 package net.coderbot.batchedentityrendering.mixin;
 
 import net.coderbot.batchedentityrendering.impl.ExtendedBufferStorage;
-import net.coderbot.batchedentityrendering.impl.FantasticVertexConsumerProvider;
+import net.coderbot.batchedentityrendering.impl.FullyBufferedVertexConsumerProvider;
 import net.coderbot.batchedentityrendering.impl.MemoryTrackingBuffer;
 import net.coderbot.batchedentityrendering.impl.MemoryTrackingBufferBuilderStorage;
 import net.minecraft.client.render.BufferBuilderStorage;
@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(BufferBuilderStorage.class)
 public class MixinBufferBuilderStorage implements ExtendedBufferStorage, MemoryTrackingBufferBuilderStorage {
 	@Unique
-	private final VertexConsumerProvider.Immediate buffered = new FantasticVertexConsumerProvider();
+	private final VertexConsumerProvider.Immediate buffered = new FullyBufferedVertexConsumerProvider();
 
 	@Unique
 	private int begins = 0;

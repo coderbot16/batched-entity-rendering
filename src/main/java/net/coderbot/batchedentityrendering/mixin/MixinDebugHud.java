@@ -1,5 +1,6 @@
 package net.coderbot.batchedentityrendering.mixin;
 
+import net.coderbot.batchedentityrendering.impl.FullyBufferedVertexConsumerProvider;
 import net.coderbot.batchedentityrendering.impl.MemoryTrackingBufferBuilderStorage;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.DebugHud;
@@ -20,5 +21,6 @@ public abstract class MixinDebugHud {
 		messages.add(5, "[Entity Batching] Misc Buffers Allocated Size: " + memoryTracker.getMiscBufferAllocatedSize());
 		messages.add(5, "[Entity Batching] Entity Buffers Size: " + memoryTracker.getEntityBufferAllocatedSize());
         messages.add(5, "[Entity Batching] WorldRenderer recursion depth (shouldn't go beyond 1): " + memoryTracker.getMaxBegins());
+        messages.add(5, "[Entity Batching] Entity Buffer Draw Calls: " + FullyBufferedVertexConsumerProvider.instance.getDrawCalls());
     }
 }

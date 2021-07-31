@@ -11,6 +11,7 @@
     "MixinMultiPhaseRenderLayer",
     "MixinWorldRenderer",
     "MultiPhaseParametersAccessor",
+    "RenderLayerAccessor",
     "RenderPhaseAccessor"
   ],
   "injectors": {

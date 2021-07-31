@@ -1,81 +1,97 @@
 package net.coderbot.batchedentityrendering.impl;
 
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.coderbot.batchedentityrendering.mixin.RenderLayerAccessor;
+
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 
 public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.Immediate implements MemoryTrackingBuffer {
-	private final Map<RenderLayer, BufferBuilder> bufferBuilders;
-	private final Object2IntMap<RenderLayer> unused;
-	private final Set<BufferBuilder> activeBuffers;
-	private boolean flushed;
+	private final BufferBuilder buffer;
+	private final List<RenderLayer> usedLayers;
+
+	private RenderLayer currentLayer;
+
+	private int drawCalls;
+
+	public static FullyBufferedVertexConsumerProvider instance;
 
 	public FullyBufferedVertexConsumerProvider() {
 		super(new BufferBuilder(0), Collections.emptyMap());
 
-		this.bufferBuilders = new HashMap<>();
-		this.unused = new Object2IntOpenHashMap<>();
-		this.activeBuffers = new HashSet<>();
-		this.flushed = false;
+		// 2 MB initial allocation
+		this.buffer = new BufferBuilder(512 * 1024);
+		this.usedLayers = new ArrayList<>(256);
+
+		this.currentLayer = null;
+		this.drawCalls = 0;
+
+		// TODO: Eh
+		instance = this;
 	}
 
 	@Override
 	public VertexConsumer getBuffer(RenderLayer renderLayer) {
-		flushed = false;
+		if (!Objects.equals(currentLayer, renderLayer)) {
+			if (currentLayer != null) {
+				if (isTranslucent(currentLayer)) {
+					buffer.sortQuads(0, 0, 0);
+				}
 
-		BufferBuilder buffer = bufferBuilders.computeIfAbsent(renderLayer, layer -> new BufferBuilder(2048));
+				buffer.end();
+				usedLayers.add(currentLayer);
+			}
 
-		if (activeBuffers.add(buffer)) {
 			buffer.begin(renderLayer.getDrawMode(), renderLayer.getVertexFormat());
-		}
 
-		// If this buffer is scheduled to be removed, unschedule it since it's now being used.
-		unused.removeInt(renderLayer);
+			currentLayer = renderLayer;
+		}
 
 		return buffer;
 	}
 
 	@Override
 	public void draw() {
-		if (flushed) {
+		if (currentLayer == null) {
 			return;
 		}
 
-		List<RenderLayer> removedLayers = new ArrayList<>();
+		usedLayers.add(currentLayer);
 
-		unused.forEach((unusedLayer, unusedCount) -> {
-			if (unusedCount < 10) {
-				// Removed after 10 frames of not being used
-				return;
-			}
-
-			BufferBuilder buffer = bufferBuilders.remove(unusedLayer);
-			removedLayers.add(unusedLayer);
-
-			if (activeBuffers.contains(buffer)) {
-				throw new IllegalStateException(
-						"A buffer was simultaneously marked as inactive and as active, something is very wrong...");
-			}
-		});
-
-		for (RenderLayer removed : removedLayers) {
-			unused.removeInt(removed);
+		if (isTranslucent(currentLayer)) {
+			buffer.sortQuads(0, 0, 0);
 		}
 
-		bufferBuilders.keySet().forEach(this::drawInternal);
+		buffer.end();
+		currentLayer = null;
 
-		flushed = true;
+		for (RenderLayer layer : usedLayers) {
+			layer.startDrawing();
+			drawCalls += 1;
+			BufferRenderer.draw(buffer);
+			layer.endDrawing();
+		}
+
+		usedLayers.clear();
+	}
+
+	private static boolean isTranslucent(RenderLayer layer) {
+		return ((RenderLayerAccessor) layer).isTranslucent();
+	}
+
+	public int getDrawCalls() {
+		return drawCalls;
+	}
+
+	public void resetDrawCalls() {
+		drawCalls = 0;
 	}
 
 	@Override
@@ -83,45 +99,13 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 		// Disable explicit flushing
 	}
 
-	private void drawInternal(RenderLayer layer) {
-		BufferBuilder buffer = bufferBuilders.get(layer);
-
-		if (buffer == null) {
-			return;
-		}
-
-		if (activeBuffers.remove(buffer)) {
-			layer.draw(buffer, 0, 0, 0);
-			buffer.reset();
-		} else {
-			// Schedule the buffer for removal next frame if it isn't used this frame.
-			int unusedCount = unused.getOrDefault(layer, 0);
-
-			unusedCount += 1;
-
-			unused.put(layer, unusedCount);
-		}
-	}
-
 	@Override
 	public int getAllocatedSize() {
-		int allocatedSize = 0;
-
-		for (BufferBuilder builder : bufferBuilders.values()) {
-			allocatedSize += ((MemoryTrackingBuffer) builder).getAllocatedSize();
-		}
-
-		return allocatedSize;
+		return ((MemoryTrackingBuffer) buffer).getAllocatedSize();
 	}
 
 	@Override
 	public int getUsedSize() {
-		int allocatedSize = 0;
-
-		for (BufferBuilder builder : bufferBuilders.values()) {
-			allocatedSize += ((MemoryTrackingBuffer) builder).getUsedSize();
-		}
-
-		return allocatedSize;
+		return ((MemoryTrackingBuffer) buffer).getUsedSize();
 	}
 }
