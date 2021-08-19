@@ -60,7 +60,7 @@ public class TranslucencyRenderOrderManager implements RenderOrderManager {
             layerCount += set.size();
         }
 
-        List<RenderLayer> allLayers = new ArrayList<>();
+        List<RenderLayer> allLayers = new ArrayList<>(layerCount);
 
         for (LinkedHashSet<RenderLayer> set : layers.values()) {
             allLayers.addAll(set);
