@@ -70,6 +70,11 @@ public class MixinWorldRenderer {
 		// Sort the entity list first in order to allow vanilla's entity batching code to work better.
 		Iterable<Entity> entityIterable = world.getEntities();
 
+		if (MinecraftClient.getInstance().player.isSneaking()) {
+			// TODO: Don't disable optimization when sneaking
+			return entityIterable;
+		}
+
 		Map<EntityType<?>, List<Entity>> sortedEntities = new HashMap<>();
 
 		List<Entity> entities = new ArrayList<>();
