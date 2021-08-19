@@ -3,6 +3,7 @@ package net.coderbot.batchedentityrendering.mixin;
 import net.coderbot.batchedentityrendering.impl.ExtendedBufferStorage;
 import net.coderbot.batchedentityrendering.impl.FlushableVertexConsumerProvider;
 import net.coderbot.batchedentityrendering.impl.FullyBufferedVertexConsumerProvider;
+import net.coderbot.batchedentityrendering.impl.Groupable;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilderStorage;
 import net.minecraft.client.render.Camera;
@@ -21,6 +22,7 @@ import net.minecraft.util.profiler.Profiler;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -34,9 +36,15 @@ import java.util.Map;
 
 @Mixin(WorldRenderer.class)
 public class MixinWorldRenderer {
+	private static final String RENDER_ENTITY =
+			"net/minecraft/client/render/WorldRenderer.renderEntity (Lnet/minecraft/entity/Entity;DDDFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;)V";
+
 	@Shadow
 	@Final
 	private BufferBuilderStorage bufferBuilders;
+
+	@Unique
+	private Groupable groupable;
 
 	@Inject(method = "render", at = @At("HEAD"))
 	private void batchedentityrendering$beginWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
@@ -45,6 +53,25 @@ public class MixinWorldRenderer {
 		}
 
 		((ExtendedBufferStorage) bufferBuilders).beginWorldRendering();
+		VertexConsumerProvider provider = bufferBuilders.getEntityVertexConsumers();
+
+		if (provider instanceof Groupable) {
+			groupable = (Groupable) provider;
+		}
+	}
+
+	@Inject(method = "render", at = @At(value = "INVOKE", target = RENDER_ENTITY))
+	private void batchedentityrendering$preRenderEntity(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
+		if (groupable != null) {
+			groupable.startGroup();
+		}
+	}
+
+	@Inject(method = "render", at = @At(value = "INVOKE", target = RENDER_ENTITY, shift = At.Shift.AFTER))
+	private void batchedentityrendering$postRenderEntity(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
+		if (groupable != null) {
+			groupable.endGroup();
+		}
 	}
 
 	@Inject(method = "render", at = @At(value = "CONSTANT", args = "stringValue=translucent"), locals = LocalCapture.CAPTURE_FAILHARD)
@@ -59,14 +86,13 @@ public class MixinWorldRenderer {
 	}
 
 	@Inject(method = "render", at = @At("RETURN"))
-	private void batchedentityrendering$fantastic$endWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
+	private void batchedentityrendering$endWorldRender(MatrixStack matrices, float tickDelta, long limitTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f matrix4f, CallbackInfo callback) {
 		((ExtendedBufferStorage) bufferBuilders).endWorldRendering();
+		groupable = null;
 	}
 
 	@Redirect(method = "render", at = @At(value = "INVOKE", target = "net/minecraft/client/world/ClientWorld.getEntities ()Ljava/lang/Iterable;"))
 	private Iterable<Entity> batchedentityrendering$sortEntityList(ClientWorld world) {
-		world.getProfiler().push("sortEntityList");
-
 		// Sort the entity list first in order to allow vanilla's entity batching code to work better.
 		Iterable<Entity> entityIterable = world.getEntities();
 
@@ -74,6 +100,8 @@ public class MixinWorldRenderer {
 			// TODO: Don't disable optimization when sneaking
 			return entityIterable;
 		}
+
+		world.getProfiler().push("sortEntityList");
 
 		Map<EntityType<?>, List<Entity>> sortedEntities = new HashMap<>();
 
