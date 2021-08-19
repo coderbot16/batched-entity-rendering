@@ -21,6 +21,15 @@ public abstract class MixinDebugHud {
 		messages.add(5, "[Entity Batching] Misc Buffers Allocated Size: " + memoryTracker.getMiscBufferAllocatedSize());
 		messages.add(5, "[Entity Batching] Entity Buffers Size: " + memoryTracker.getEntityBufferAllocatedSize());
         messages.add(5, "[Entity Batching] WorldRenderer recursion depth (shouldn't go beyond 1): " + memoryTracker.getMaxBegins());
-        messages.add(5, "[Entity Batching] Entity Buffer Draw Calls: " + FullyBufferedVertexConsumerProvider.instance.getDrawCalls());
+
+        int drawCalls = FullyBufferedVertexConsumerProvider.instance.getDrawCalls();
+        int renderLayers = FullyBufferedVertexConsumerProvider.instance.getRenderLayers();
+
+        if (drawCalls > 0) {
+            messages.add(5, "[Entity Batching] Draw Calls: " + drawCalls);
+            messages.add(5, "[Entity Batching] Render Layers: " + renderLayers + " (" + (renderLayers * 1000 / drawCalls) / 10.0F + "% batching effectiveness)");
+        } else {
+            messages.add(5, "[Entity Batching] (no draw calls)");
+        }
     }
 }

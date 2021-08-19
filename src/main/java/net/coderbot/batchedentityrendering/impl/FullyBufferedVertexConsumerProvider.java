@@ -23,19 +23,22 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.Immediate implements MemoryTrackingBuffer, Groupable {
-	private static final int UNASSIGNED_AFFINITY = -1;
 	private static final int NUM_BUFFERS = 32;
 
 	private final RenderOrderManager renderOrderManager;
 	private final SegmentedBufferBuilder[] builders;
-	private final Object2IntMap<RenderLayer> affinities;
-	private int nextAffinity;
+	/**
+	 * An LRU cache mapping RenderLayer objects to a relevant buffer.
+	 */
+	private final LinkedHashMap<RenderLayer, Integer> affinities;
 	private int drawCalls;
+	private int renderLayers;
 
 	public static FullyBufferedVertexConsumerProvider instance;
 
@@ -49,9 +52,8 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 			this.builders[i] = new SegmentedBufferBuilder();
 		}
 
-		this.affinities = new Object2IntOpenHashMap<>();
-		this.affinities.defaultReturnValue(UNASSIGNED_AFFINITY);
-		this.nextAffinity = 0;
+		// use accessOrder=true so our LinkedHashMap works as an LRU cache.
+		this.affinities = new LinkedHashMap<>(32, 0.75F, true);
 
 		this.drawCalls = 0;
 
@@ -62,15 +64,23 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 	@Override
 	public VertexConsumer getBuffer(RenderLayer renderLayer) {
 		renderOrderManager.begin(renderLayer);
-		int affinity = affinities.getInt(renderLayer);
+		Integer affinity = affinities.get(renderLayer);
 
-		if (affinity == UNASSIGNED_AFFINITY) {
-			if (nextAffinity < builders.length) {
-				affinity = nextAffinity;
-				nextAffinity += 1;
+		if (affinity == null) {
+			if (affinities.size() < builders.length) {
+				affinity = affinities.size();
 			} else {
-				// TODO: Don't just select a random buffer.
-				affinity = ThreadLocalRandom.current().nextInt(builders.length);
+				// We remove the element from the map that is used least-frequently.
+				// With how we've configured our LinkedHashMap, that is the first element.
+				Iterator<Map.Entry<RenderLayer, Integer>> iterator = affinities.entrySet().iterator();
+				Map.Entry<RenderLayer, Integer> evicted = iterator.next();
+				iterator.remove();
+
+				// The previous layer is no longer associated with this buffer ...
+				affinities.remove(evicted.getKey());
+
+				// ... since our new layer is now associated with it.
+				affinity = evicted.getValue();
 			}
 
 			affinities.put(renderLayer, affinity);
@@ -104,6 +114,8 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 		for (RenderLayer layer : renderOrder) {
 			layer.startDrawing();
 
+			renderLayers += 1;
+
 			for (BufferSegment segment : layerToSegment.getOrDefault(layer, Collections.emptyList())) {
 				drawInner(segment);
 				drawCalls += 1;
@@ -116,7 +128,6 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 
 		renderOrderManager.reset();
 		affinities.clear();
-		nextAffinity = 0;
 
 		profiler.pop();
 	}
@@ -129,8 +140,13 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 		return drawCalls;
 	}
 
+	public int getRenderLayers() {
+		return renderLayers;
+	}
+
 	public void resetDrawCalls() {
 		drawCalls = 0;
+		renderLayers = 0;
 	}
 
 	private static void draw(BufferSegment segment) {
