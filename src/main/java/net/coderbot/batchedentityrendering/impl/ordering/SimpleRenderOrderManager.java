@@ -20,6 +20,11 @@ public class SimpleRenderOrderManager implements RenderOrderManager {
         // no-op
     }
 
+    public boolean maybeStartGroup() {
+        // no-op
+        return false;
+    }
+
     public void endGroup() {
         // no-op
     }

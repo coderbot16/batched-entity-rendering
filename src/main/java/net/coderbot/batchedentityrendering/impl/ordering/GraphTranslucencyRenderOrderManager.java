@@ -73,6 +73,16 @@ public class GraphTranslucencyRenderOrderManager implements RenderOrderManager {
         inGroup = true;
     }
 
+    public boolean maybeStartGroup() {
+        if (inGroup) {
+            return false;
+        }
+
+        currentLayers.clear();
+        inGroup = true;
+        return true;
+    }
+
     public void endGroup() {
         if (!inGroup) {
             throw new IllegalStateException("Not in a group");

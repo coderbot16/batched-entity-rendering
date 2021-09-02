@@ -205,6 +205,11 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 	}
 
 	@Override
+	public boolean maybeStartGroup() {
+		return renderOrderManager.maybeStartGroup();
+	}
+
+	@Override
 	public void endGroup() {
 		renderOrderManager.endGroup();
 	}

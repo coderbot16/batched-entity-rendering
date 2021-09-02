@@ -4,6 +4,7 @@
   "package": "net.coderbot.batchedentityrendering.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "MixinBannerBlockEntityRenderer",
     "MixinBufferBuilder",
     "MixinBufferBuilderStorage",
     "MixinDebugHud",
