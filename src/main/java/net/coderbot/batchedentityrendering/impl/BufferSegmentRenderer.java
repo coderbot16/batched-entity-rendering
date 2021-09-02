@@ -1,14 +1,19 @@
 package net.coderbot.batchedentityrendering.impl;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.VertexFormat;
-import org.lwjgl.system.MemoryUtil;
+import net.minecraft.client.render.BufferRenderer;
 
 import java.nio.ByteBuffer;
 
 public class BufferSegmentRenderer {
+    private final BufferBuilder fakeBufferBuilder;
+    private final BufferBuilderExt fakeBufferBuilderExt;
+
+    public BufferSegmentRenderer() {
+        this.fakeBufferBuilder = new BufferBuilder(0);
+        this.fakeBufferBuilderExt = (BufferBuilderExt) this.fakeBufferBuilder;
+    }
+
     /**
      * Sets up the render layer, draws the buffer, and then tears down the render layer.
      */
@@ -22,19 +27,46 @@ public class BufferSegmentRenderer {
      * Like draw(), but it doesn't setup / tear down the render layer.
      */
     public void drawInner(BufferSegment segment) {
-        BufferBuilder.DrawArrayParameters parameters = segment.getParameters();
-
-        draw(segment.getSlice(), parameters.getMode(), parameters.getVertexFormat(), parameters.getCount());
+        fakeBufferBuilderExt.setupBufferSlice(segment.getSlice(), segment.getParameters());
+        BufferRenderer.draw(fakeBufferBuilder);
+        fakeBufferBuilderExt.teardownBufferSlice();
     }
 
-    private static void draw(ByteBuffer buffer, int mode, VertexFormat vertexFormat, int count) {
-        // TODO: This only works on 1.15 and 1.16, not 1.17.
-        RenderSystem.assertThread(RenderSystem::isOnRenderThread);
-        buffer.clear();
-        if (count > 0) {
-            vertexFormat.startDrawing(MemoryUtil.memAddress(buffer));
-            GlStateManager.drawArrays(mode, 0, count);
-            vertexFormat.endDrawing();
-        }
+    private static void setInternalBuffer(BufferBuilder target, ByteBuffer buffer, BufferBuilder.DrawArrayParameters parameters) {
+        // target.buffer = buffer;
+        // target.parameters = new ArrayList<>(1);
+        // target.parameters.add(parameters);
+
+        // target.lastParameterIndex does not need modification.
+        // target.buildStart = parameters.getCount() * parameters.getVertexFormat().getVertexSize();
+        // target.elementOffset = target.buildStart;
+        // target.nextDrawStart is zero as it should be.
+
+        // target.vertexCount is never nonzero in this process.
+        // target.currentElement is never non-null in this process.
+        // target.currentElementId is never nonzero.
+        // target.drawMode is irrelevant.
+        // target.format is irrelevant.
+        // The final 3 booleans are also irrelvant.
+
+        // TODO
+    }
+
+    private static void unsetInternalBuffer(BufferBuilder target) {
+        // target.buffer = null;
+        // target.parameters gets reset.
+        // target.lastParameterIndex gets reset.
+        // target.buildStart gets reset.
+        // target.elementOffset gets reset.
+        // target.nextDrawStart gets reset.
+
+        // target.vertexCount is never nonzero in this process.
+        // target.currentElement is never non-null in this process.
+        // target.currentElementId is never nonzero.
+        // target.drawMode is irrelevant.
+        // target.format is irrelevant.
+        // The final 3 booleans are also irrelvant.
+
+        // TODO
     }
 }

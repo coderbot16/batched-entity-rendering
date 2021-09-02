@@ -6,6 +6,7 @@
   "client": [
     "MixinBannerBlockEntityRenderer",
     "MixinBufferBuilder",
+    "MixinBufferBuilder_SegmentRendering",
     "MixinBufferBuilderStorage",
     "MixinDebugHud",
     "MixinImmediateVertexConsumerProvider",
