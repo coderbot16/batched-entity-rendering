@@ -11,6 +11,7 @@
     "MixinImmediateVertexConsumerProvider",
     "MixinMultiPhaseRenderLayer",
     "MixinWorldRenderer",
+    "MixinWorldRenderer_EntityListSorting",
     "MultiPhaseParametersAccessor",
     "RenderLayerAccessor",
     "RenderPhaseAccessor"
