@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(BufferBuilderStorage.class)
 public class MixinBufferBuilderStorage implements ExtendedBufferStorage, MemoryTrackingBufferBuilderStorage {
 	@Unique
-	private final VertexConsumerProvider.Immediate buffered = new FullyBufferedVertexConsumerProvider();
+	private final FullyBufferedVertexConsumerProvider buffered = new FullyBufferedVertexConsumerProvider();
 
 	@Unique
 	private int begins = 0;
@@ -42,6 +42,17 @@ public class MixinBufferBuilderStorage implements ExtendedBufferStorage, MemoryT
 		}
 
 		provider.setReturnValue(buffered);
+	}
+
+	@Inject(method = "getEffectVertexConsumers", at = @At("HEAD"), cancellable = true)
+	private void batchedentityrendering$replaceEffectVertexConsumers(CallbackInfoReturnable<VertexConsumerProvider.Immediate> provider) {
+		// TODO: Don't toggle when sneaking
+		if (begins == 0 || MinecraftClient.getInstance().player.isSneaking()) {
+			return;
+		}
+
+		// Prevent vanilla from explicitly flushing the wrapper at the wrong time.
+		provider.setReturnValue(buffered.getUnflushableWrapper());
 	}
 
 	@Inject(method = "getOutlineVertexConsumers", at = @At("HEAD"), cancellable = true)

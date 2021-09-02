@@ -40,6 +40,8 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 	private int drawCalls;
 	private int renderLayers;
 
+	private final UnflushableWrapper unflushableWrapper;
+
 	public static FullyBufferedVertexConsumerProvider instance;
 
 	public FullyBufferedVertexConsumerProvider() {
@@ -56,6 +58,7 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 		this.affinities = new LinkedHashMap<>(32, 0.75F, true);
 
 		this.drawCalls = 0;
+		this.unflushableWrapper = new UnflushableWrapper(this);
 
 		// TODO: Eh
 		instance = this;
@@ -177,6 +180,10 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 		// Disable explicit flushing
 	}
 
+	public VertexConsumerProvider.Immediate getUnflushableWrapper() {
+		return unflushableWrapper;
+	}
+
 	@Override
 	public int getAllocatedSize() {
 		int size = 0;
@@ -212,5 +219,48 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 	@Override
 	public void endGroup() {
 		renderOrderManager.endGroup();
+	}
+
+	/**
+	 * A wrapper that prevents callers from explicitly flushing anything.
+	 */
+	private static class UnflushableWrapper extends VertexConsumerProvider.Immediate implements Groupable {
+		private final FullyBufferedVertexConsumerProvider wrapped;
+
+		UnflushableWrapper(FullyBufferedVertexConsumerProvider wrapped) {
+			super(new BufferBuilder(0), Collections.emptyMap());
+
+			this.wrapped = wrapped;
+		}
+
+		@Override
+		public VertexConsumer getBuffer(RenderLayer renderLayer) {
+			return wrapped.getBuffer(renderLayer);
+		}
+
+		@Override
+		public void draw() {
+			// Disable explicit flushing
+		}
+
+		@Override
+		public void draw(RenderLayer layer) {
+			// Disable explicit flushing
+		}
+
+		@Override
+		public void startGroup() {
+			wrapped.startGroup();
+		}
+
+		@Override
+		public boolean maybeStartGroup() {
+			return wrapped.maybeStartGroup();
+		}
+
+		@Override
+		public void endGroup() {
+			wrapped.endGroup();
+		}
 	}
 }
