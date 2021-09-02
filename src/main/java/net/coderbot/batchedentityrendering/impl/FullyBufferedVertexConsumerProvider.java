@@ -1,13 +1,7 @@
 package net.coderbot.batchedentityrendering.impl;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.coderbot.batchedentityrendering.impl.ordering.GraphTranslucencyRenderOrderManager;
 import net.coderbot.batchedentityrendering.impl.ordering.RenderOrderManager;
-import net.coderbot.batchedentityrendering.impl.ordering.SimpleRenderOrderManager;
-import net.coderbot.batchedentityrendering.impl.ordering.TranslucencyRenderOrderManager;
 import net.coderbot.batchedentityrendering.mixin.RenderLayerAccessor;
 
 import net.minecraft.client.MinecraftClient;
@@ -15,11 +9,8 @@ import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.VertexFormat;
 import net.minecraft.util.profiler.Profiler;
-import org.lwjgl.system.MemoryUtil;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,6 +31,7 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 	private int drawCalls;
 	private int renderLayers;
 
+	private final BufferSegmentRenderer segmentRenderer;
 	private final UnflushableWrapper unflushableWrapper;
 
 	public static FullyBufferedVertexConsumerProvider instance;
@@ -58,6 +50,7 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 		this.affinities = new LinkedHashMap<>(32, 0.75F, true);
 
 		this.drawCalls = 0;
+		this.segmentRenderer = new BufferSegmentRenderer();
 		this.unflushableWrapper = new UnflushableWrapper(this);
 
 		// TODO: Eh
@@ -120,7 +113,7 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 			renderLayers += 1;
 
 			for (BufferSegment segment : layerToSegment.getOrDefault(layer, Collections.emptyList())) {
-				drawInner(segment);
+				segmentRenderer.drawInner(segment);
 				drawCalls += 1;
 			}
 
@@ -150,29 +143,6 @@ public class FullyBufferedVertexConsumerProvider extends VertexConsumerProvider.
 	public void resetDrawCalls() {
 		drawCalls = 0;
 		renderLayers = 0;
-	}
-
-	private static void draw(BufferSegment segment) {
-		segment.getRenderLayer().startDrawing();
-		drawInner(segment);
-		segment.getRenderLayer().endDrawing();
-	}
-
-	private static void drawInner(BufferSegment segment) {
-		BufferBuilder.DrawArrayParameters parameters = segment.getParameters();
-
-		draw(segment.getSlice(), parameters.getMode(), parameters.getVertexFormat(), parameters.getCount());
-	}
-
-	private static void draw(ByteBuffer buffer, int mode, VertexFormat vertexFormat, int count) {
-		// TODO: This only works on 1.15 and 1.16, not 1.17.
-		RenderSystem.assertThread(RenderSystem::isOnRenderThread);
-		buffer.clear();
-		if (count > 0) {
-			vertexFormat.startDrawing(MemoryUtil.memAddress(buffer));
-			GlStateManager.drawArrays(mode, 0, count);
-			vertexFormat.endDrawing();
-		}
 	}
 
 	@Override
