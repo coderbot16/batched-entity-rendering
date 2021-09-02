@@ -28,6 +28,8 @@ public abstract class MixinMultiPhaseRenderLayer extends RenderLayer implements 
 
 		if ("water_mask".equals(name)) {
 			transparencyType = TransparencyType.WATER_MASK;
+		} else if ("lines".equals(name)) {
+			transparencyType = TransparencyType.LINES;
 		} else if (transparency == RenderPhaseAccessor.getNO_TRANSPARENCY()) {
 			transparencyType = TransparencyType.OPAQUE;
 		} else if (transparency == RenderPhaseAccessor.getGLINT_TRANSPARENCY() ||
