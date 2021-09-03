@@ -31,7 +31,8 @@ public class SegmentedBufferBuilder implements VertexConsumerProvider, MemoryTra
         if (!Objects.equals(currentLayer, renderLayer)) {
             if (currentLayer != null) {
                 if (isTranslucent(currentLayer)) {
-                    buffer.sortQuads(0, 0, 0);
+                    // sets the camera position for quad sorting, quad sorting is handled in end()
+                    buffer.setCameraPosition(0, 0, 0);
                 }
 
                 buffer.end();
@@ -62,7 +63,8 @@ public class SegmentedBufferBuilder implements VertexConsumerProvider, MemoryTra
         usedLayers.add(currentLayer);
 
         if (isTranslucent(currentLayer)) {
-            buffer.sortQuads(0, 0, 0);
+            // sets the camera position for quad sorting, quad sorting is handled in end()
+            buffer.setCameraPosition(0, 0, 0);
         }
 
         buffer.end();

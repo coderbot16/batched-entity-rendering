@@ -16,12 +16,12 @@ public abstract class MixinMultiPhaseRenderLayer extends RenderLayer implements 
 	@Unique
 	private TransparencyType transparencyType;
 
-	private MixinMultiPhaseRenderLayer(String name, VertexFormat vertexFormat, int drawMode, int expectedBufferSize, boolean hasCrumbling, boolean translucent, Runnable startAction, Runnable endAction) {
+	private MixinMultiPhaseRenderLayer(String name, VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, int expectedBufferSize, boolean hasCrumbling, boolean translucent, Runnable startAction, Runnable endAction) {
 		super(name, vertexFormat, drawMode, expectedBufferSize, hasCrumbling, translucent, startAction, endAction);
 	}
 
 	@Inject(method = "<init>", at = @At("RETURN"))
-	private void batchedentityrendering$onMultiPhaseInit(String name, VertexFormat vertexFormat, int drawMode, int expectedBufferSize,
+	private void batchedentityrendering$onMultiPhaseInit(String name, VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, int expectedBufferSize,
 									   boolean hasCrumbling, boolean translucent, RenderLayer.MultiPhaseParameters phases,
 									   CallbackInfo ci) {
 		RenderPhase.Transparency transparency = ((MultiPhaseParametersAccessor) (Object) phases).getTransparency();
