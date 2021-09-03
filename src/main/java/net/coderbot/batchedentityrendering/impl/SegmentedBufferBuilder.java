@@ -43,6 +43,14 @@ public class SegmentedBufferBuilder implements VertexConsumerProvider, MemoryTra
             currentLayer = renderLayer;
         }
 
+        // Use duplicate vertices to break up triangle strips
+        // https://developer.apple.com/library/archive/documentation/3DDrawing/Conceptual/OpenGLES_ProgrammingGuide/Art/degenerate_triangle_strip_2x.png
+        // This works by generating zero-area triangles that don't end up getting rendered.
+        // TODO: How do we handle DEBUG_LINE_STRIP?
+        if (RenderLayerUtil.isTriangleStripDrawMode(currentLayer)) {
+            ((BufferBuilderExt) buffer).splitStrip();
+        }
+
         return buffer;
     }
 

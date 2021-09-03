@@ -2,9 +2,14 @@ package net.coderbot.batchedentityrendering.mixin;
 
 import net.coderbot.batchedentityrendering.impl.BufferBuilderExt;
 import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.VertexFormat;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -75,5 +80,54 @@ public class MixinBufferBuilder_SegmentRendering implements BufferBuilderExt {
         // target.drawMode is irrelevant.
         // target.format is irrelevant.
         // The final 3 booleans are also irrelevant.
+    }
+
+    @Shadow
+    private VertexFormat format;
+
+    @Shadow
+    private int vertexCount;
+
+    @Shadow
+    private void grow() {
+        throw new AssertionError("not shadowed");
+    }
+
+    @Override
+    public void splitStrip() {
+        if (vertexCount == 0) {
+            // no strip to split, not building.
+            return;
+        }
+
+        duplicateLastVertex();
+        dupeNextVertex = true;
+    }
+
+    @Unique
+    private boolean dupeNextVertex;
+
+    private void duplicateLastVertex() {
+        int i = this.format.getVertexSize();
+        this.buffer.position(this.elementOffset);
+        ByteBuffer byteBuffer = this.buffer.duplicate();
+        byteBuffer.position(this.elementOffset - i).limit(this.elementOffset);
+        this.buffer.put(byteBuffer);
+        this.elementOffset += i;
+        ++this.vertexCount;
+        this.grow();
+    }
+
+    @Inject(method = "end", at = @At("RETURN"))
+    private void batchedentityrendering$onEnd(CallbackInfo ci) {
+        dupeNextVertex = false;
+    }
+
+    @Inject(method = "next", at = @At("RETURN"))
+    private void batchedentityrendering$onNext(CallbackInfo ci) {
+        if (dupeNextVertex) {
+            dupeNextVertex = false;
+            duplicateLastVertex();
+        }
     }
 }
