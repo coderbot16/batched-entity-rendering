@@ -21,6 +21,9 @@ import java.util.List;
 
 @Mixin(BannerBlockEntityRenderer.class)
 public class MixinBannerBlockEntityRenderer {
+    private static final String RENDER_CANVAS =
+            "renderCanvas(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;IILnet/minecraft/client/model/ModelPart;Lnet/minecraft/client/util/SpriteIdentifier;ZLjava/util/List;Z)V";
+
     /**
      * Holds a Groupable instance, if we successfully started a group.
      * This is because we need to make sure to end the group that we started.
@@ -29,7 +32,7 @@ public class MixinBannerBlockEntityRenderer {
     private static Groupable groupableToEnd;
     private static int index;
 
-    @ModifyVariable(method = "renderCanvas", at = @At("HEAD"))
+    @ModifyVariable(method = RENDER_CANVAS, at = @At("HEAD"))
     private static VertexConsumerProvider iris$wrapVertexConsumerProvider(VertexConsumerProvider vertexConsumers) {
         if (vertexConsumers instanceof Groupable) {
             Groupable groupable = (Groupable) vertexConsumers;
@@ -45,11 +48,11 @@ public class MixinBannerBlockEntityRenderer {
         return layer -> vertexConsumers.getBuffer(new TaggingRenderLayerWrapper(layer.toString(), layer, index++));
     }
 
-    @Inject(method = "renderCanvas", at = @At("RETURN"))
-    private static void iris$endRenderingCanvas(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
-                                                  int light, int overlay, ModelPart canvas, SpriteIdentifier baseSprite,
-                                                  boolean isBanner, List<Pair<BannerPattern, DyeColor>> patterns,
-                                                  boolean glint, CallbackInfo ci) {
+    @Inject(method = RENDER_CANVAS, at = @At("RETURN"))
+    private static void iris$endRenderingCanvas(MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light,
+                                                int overlay, ModelPart canvas, SpriteIdentifier baseSprite,
+                                                boolean isBanner, List<Pair<BannerPattern, DyeColor>> patterns,
+                                                boolean glint, CallbackInfo ci) {
         if (groupableToEnd != null) {
             groupableToEnd.endGroup();
             groupableToEnd = null;
